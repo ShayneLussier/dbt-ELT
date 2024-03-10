@@ -17,15 +17,6 @@ JSON = "transactions.json"
 
 MAX_CUSTOMER_ID = 0 # I should be able to delete this variable
 
-# Snowflake connection details
-SNOWFLAKE_ACCOUNT = 'https://mj85741.ca-central-1.aws.snowflakecomputing.com'
-SNOWFLAKE_USER = 'SHAYNELUSSIER1'
-SNOWFLAKE_PASSWORD = 'Australia19!'
-SNOWFLAKE_DATABASE = 'Store'
-SNOWFLAKE_SCHEMA = 'Analytics'
-SNOWFLAKE_WAREHOUSE = 'COMPUTE_WH'
-SNOWFLAKE_ROLE = 'ACCOUNTADMIN '
-
 # -------------------- FUNCTIONS -------------------- #
 
 fake = Faker(locale='fr_CA')

@@ -3,5 +3,8 @@ note.txt
 dags/script/__pycache__
 dags/note.txt
 logs/*
+config/*.py
+dags/example_bash_operator.py
+dags/scripts/products.csv
 
 postgres_data/
