@@ -1,0 +1,7 @@
+__pycache__
+note.txt
+dags/script/__pycache__
+dags/note.txt
+logs/*
+
+postgres_data/
