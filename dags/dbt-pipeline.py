@@ -1,29 +1,19 @@
 from datetime import datetime, timedelta
-import pendulum
-import os
 
-from airflow.models.dag import DAG
+from airflow.models import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-import boto3
+from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 
-from scripts.data import main
+from scripts.transactions import fetch_product_data, generate_fake_transaction
+from scripts.database import get_max_customer_id
 
 # -------------------- FUNCTIONS -------------------- #
 
-def fetch_file_from_s3(key='products/products.csv', bucket_name='data-pipeline-repo', **kwargs):
-    s3_hook = S3Hook(aws_conn_id='aws_airflow')
-
-    csv_content = s3_hook.get_key(key, bucket_name).get()['Body'].read().decode('utf-8')
-
-    # Push the csv_content to XCom
-    kwargs['ti'].xcom_push(key='csv_content', value=csv_content)
-
 def generate_transactions(**kwargs):
     amount = 100
-    ti = kwargs['ti']
-    csv_content = ti.xcom_pull(task_ids='fetch_s3_data', key='csv_content')
-    main(csv_content, amount)
+    ti = kwargs['ti']  # Access the XCom Task Instance
+    max_customer_id=ti.xcom_pull(task_ids='fetch_max_customer_id', key='return_value')
+    generate_fake_transaction(amount, max_customer_id)
 
 # def upload_to_s3(key='transactions/transactions.json', bucket_name='data-pipeline-repo', **kwargs):
 #     # Upload processed data to S3 bucket
@@ -37,7 +27,7 @@ default_args = {
     'email': ['shayne@shaynelussier.com'],
     'email_on_failure': True,
     "depends_on_past": False,
-    'retries': 2,
+    'retries': 1,
     "retry_delay": timedelta(seconds=30)
 }
 
@@ -51,10 +41,18 @@ with DAG(
     description='Perform ELT on transaction JSON data into Snowflake for downstream analytics',
 ) as dag:
 
-    fetch_s3_data = PythonOperator(
-        task_id='fetch_s3_data',
-        python_callable=fetch_file_from_s3,
-        provide_context=True,
+    fetch_s3_product_data = PythonOperator(
+        task_id='fetch_s3_product_data',
+        python_callable=fetch_product_data,
+        do_xcom_push=True,
+        dag=dag,
+    )
+
+    fetch_max_customer_id = SnowflakeOperator(
+        task_id='fetch_max_customer_id',
+        sql="SELECT MAX(customer_id) AS max_customer_id FROM analytics.customers_dim",
+        snowflake_conn_id='snowflake_conn',
+        do_xcom_push=True,
         dag=dag,
     )
 
@@ -74,15 +72,36 @@ with DAG(
     # )
 
     # Define the task dependency
-    fetch_s3_data >> generate_transactions
-    # fetch_s3_data >> generate_transactions >> upload_to_s3
+    [fetch_s3_product_data, fetch_max_customer_id] >> generate_transactions
 
 '''
 retrieve products csv and from s3 bucket
 fetch max customer_id from snowflake table, if none start at 0
 create fake transaction json data
-load json file into s3 bucket *****replace is task below*****
-load json file from s3 to snowflake using streams??? or bucket auto detect???
+load json data into snowflake
 transform via dbt
 changes should be visible in a tableau dashboard
+'''
+
+'''
+retrieve products csv and from s3 bucket
+fetch max customer_id from snowflake table, if none start at 0
+create fake transaction json data
+load json file into s3 bucket
+load json file from s3 to snowflake using streams??? or bucket auto detect???
+run a transform script via snowflake, sql or python? *** is this script triggered by the bucket auto detect??
+tableau dashboard
+'''
+
+'''
+retrieve products csv and from s3 bucket
+fetch max customer_id from snowflake table, if none start at 0
+create fake transaction json data
+send the json file to spark for transformation
+load into snowflake
+tableau
+'''
+
+'''
+aws pipeline
 '''

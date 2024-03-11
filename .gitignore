@@ -1,10 +1,11 @@
-__pycache__
-note.txt
-dags/script/__pycache__
+dags/scripts/*
+dags/__pycache__
 dags/note.txt
-logs/*
 config/*.py
 dags/example_bash_operator.py
-dags/scripts/products.csv
-
 postgres_data/
+logs/
+
+!/dags/dbt-pipeline.py
+!/dags/scripts/transactions.py
+!/dags/scripts/database.py
