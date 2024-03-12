@@ -1,10 +1,13 @@
+# import aws conn keys as variables into airflow??
+
+
 from datetime import datetime, timedelta
 
 from airflow.models import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 
-from scripts.transactions import fetch_product_data, generate_fake_transaction
+from scripts.transactions import fetch_product_data, generate_fake_transaction, upload_to_s3
 from scripts.database import get_max_customer_id
 
 # -------------------- FUNCTIONS -------------------- #
@@ -14,11 +17,6 @@ def generate_transactions(**kwargs):
     ti = kwargs['ti']  # Access the XCom Task Instance
     max_customer_id=ti.xcom_pull(task_ids='fetch_max_customer_id', key='return_value')
     generate_fake_transaction(amount, max_customer_id)
-
-# def upload_to_s3(key='transactions/transactions.json', bucket_name='data-pipeline-repo', **kwargs):
-#     # Upload processed data to S3 bucket
-#     s3_hook = S3Hook(aws_conn_id='aws_airflow')
-#     s3_hook.load_file(filename='transactions.json', key=key, bucket_name=bucket_name, replace=True)  # Set to replace=True if you want to overwrite existing file
 
 # -------------------- DAG -------------------- #
 
@@ -51,7 +49,7 @@ with DAG(
     fetch_max_customer_id = SnowflakeOperator(
         task_id='fetch_max_customer_id',
         sql="SELECT MAX(customer_id) AS max_customer_id FROM analytics.customers_dim",
-        snowflake_conn_id='snowflake_conn',
+        snowflake_conn_id='snowflake_analytics_conn',
         do_xcom_push=True,
         dag=dag,
     )
@@ -64,15 +62,50 @@ with DAG(
         dag=dag,
     )
 
-    # upload_to_s3 = PythonOperator(
-    #     task_id='upload_to_s3',
-    #     python_callable=upload_to_s3,
-    #     provide_context=True,
-    #     dag=dag,
-    # )
+    upload_to_s3 = PythonOperator(
+        task_id='upload_to_s3',
+        python_callable=upload_to_s3,
+        dag=dag,
+    )
+
+    create_staging_table = SnowflakeOperator(
+        task_id='create_staging_table',
+        snowflake_conn_id='snowflake_staging_conn',
+        sql="""
+            CREATE OR REPLACE TABLE staging.raw_data (
+            id STRING,
+            date STRING,
+            customer OBJECT,
+            items ARRAY 
+            );
+            """,
+        dag=dag
+    )
+
+    copy_raw_data = SnowflakeOperator(
+    task_id='copy_raw_data',
+    snowflake_conn_id='snowflake_staging_conn',
+    sql="""
+        COPY INTO "STORE"."STAGING"."RAW_DATA"
+        FROM @s3_data_pipeline_repo
+        FILES=('transactions.json')
+        FILE_FORMAT=(
+            TYPE=JSON,
+            STRIP_OUTER_ARRAY=TRUE,
+            REPLACE_INVALID_CHARACTERS=TRUE,
+            DATE_FORMAT=AUTO,
+            TIME_FORMAT=AUTO,
+            TIMESTAMP_FORMAT=AUTO
+        )
+        MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE
+        ON_ERROR=ABORT_STATEMENT
+        """,
+        dag=dag,
+    )
 
     # Define the task dependency
-    [fetch_s3_product_data, fetch_max_customer_id] >> generate_transactions
+    [fetch_s3_product_data, fetch_max_customer_id] >> generate_transactions >> upload_to_s3
+    upload_to_s3 >> create_staging_table >> copy_raw_data
 
 '''
 retrieve products csv and from s3 bucket

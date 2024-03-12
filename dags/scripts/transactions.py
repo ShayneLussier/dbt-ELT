@@ -12,7 +12,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 START_DATE = datetime.today() - timedelta(days=365)
 END_DATE = datetime.today()
 
-JSON = "transactions.json"
+JSON = "/opt/airflow/dags/scripts/transactions.json"
 
 # -------------------- FUNCTIONS -------------------- #
 
@@ -57,13 +57,20 @@ def fetch_product_data(key='products/products.csv', bucket_name='data-pipeline-r
     return product_data
 
 def read_json(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        json_data = [json.loads(line) for line in file if line.strip()]
+    with open(file_path, 'r', encoding='utf-8') as f:
+        json_data = json.load(f)
     return json_data
 
 def append_to_json(file_path, data):
-    with open(file=file_path, mode='a', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False)
+    try:
+        with open(file=file_path, mode='r', encoding='utf-8') as f:
+            existing_data = json.load(f)
+    except FileNotFoundError:
+        existing_data = []
+    
+    existing_data.append(data)
+    with open(file=file_path, mode='w', encoding='utf-8') as f:
+        json.dump(existing_data, f, ensure_ascii=False)
         f.write('\n')
 
 def transaction_new_customer(product_data, max_id):
@@ -100,7 +107,9 @@ def transaction_returning_customer(product_data, max_customer_id):
 
     # Select a random customer from the JSON data
     json_data = read_json(JSON)
+    print(json_data)
     existing_customer = random.choice(json_data)
+    print(existing_customer)
     
     # Generate transaction data using the selected customer's details
     data = {
@@ -124,9 +133,12 @@ def transaction_returning_customer(product_data, max_customer_id):
     append_to_json(JSON, data)
 
 def generate_fake_transaction(amount, max_customer_id):
+    if os.path.exists(JSON):
+        os.remove(JSON)
     max_id = [int(max_customer_id[0]["MAX_CUSTOMER_ID"]) if max_customer_id[0]["MAX_CUSTOMER_ID"] is not None else 0]
     product_data = fetch_product_data()
     for _ in range(amount):
+        print(_)
         # Decide whether the customer will be a new or returning customer at an 25% return rate
         is_repeat_customer = random.choices([True, False], weights=[0.25, 0.75])[0]
 
@@ -134,3 +146,14 @@ def generate_fake_transaction(amount, max_customer_id):
             transaction_returning_customer(product_data, max_id)
         else:
             transaction_new_customer(product_data, max_id)
+
+def upload_to_s3(file_path=JSON, key='transactions/transactions.json', bucket_name='data-pipeline-repo', **kwargs):
+    s3_hook = S3Hook(aws_conn_id='aws_airflow')
+    
+    # Upload the data to S3
+    s3_hook.load_file(
+        filename=file_path,
+        key=key,
+        bucket_name=bucket_name,
+        replace=True  # Set to True if you want to replace an existing file with the same key
+    )
