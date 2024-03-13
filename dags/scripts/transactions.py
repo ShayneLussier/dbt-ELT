@@ -155,5 +155,5 @@ def upload_to_s3(file_path=JSON, key='transactions/transactions.json', bucket_na
         filename=file_path,
         key=key,
         bucket_name=bucket_name,
-        replace=True  # Set to True if you want to replace an existing file with the same key
+        replace=True
     )
