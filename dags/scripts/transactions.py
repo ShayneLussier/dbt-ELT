@@ -87,10 +87,10 @@ def transaction_new_customer(product_data, max_id):
         "customer": {
             "id": max_id[0] + 1,
             "name": customer_name,
-            "email": (f"{''.join(customer_name.split())}@email.com").replace('"', ''),
-            "address": generate_quebec_address().replace('"', ''),
+            "email": (f"{''.join(customer_name.split())}@email.com"),
+            "address": generate_quebec_address(),
             "phone": fake.phone_number(),
-            "card_number": fake.credit_card_number().replace('"', '')
+            "card_number": fake.credit_card_number()
         }
     }
     max_id[0] += 1
