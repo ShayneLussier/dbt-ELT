@@ -1,14 +1,3 @@
-# import aws conn keys as variables into airflow??
-# add mask to customer credit card number
-
-# if the task to pull max_id from snowflake fails, it means there is no table, so airflow should trigger a task to create the table and return zero
-# how to implement the on_failure tasks with other tables???
-
-## !!!!!!!!!!!!!! check if new bash command works: 'dbt run --models store.customers_dim.* --profiles-dir ./',
-
-# check if " have been removed from address, email, credit card
-
-
 from datetime import datetime, timedelta
 
 from airflow.models import DAG
@@ -129,35 +118,3 @@ with DAG(
     # Define the task dependency
     [fetch_s3_product_data, fetch_max_customer_id] >> generate_transactions >> upload_to_s3 >> create_staging_table
     create_staging_table >> copy_raw_data >> [populate_customers_dim, populate_transactions_fact]
-
-'''
-retrieve products csv and from s3 bucket
-fetch max customer_id from snowflake table, if none start at 0
-create fake transaction json data
-load json data into snowflake
-transform via dbt
-changes should be visible in a tableau dashboard
-'''
-
-'''
-retrieve products csv and from s3 bucket
-fetch max customer_id from snowflake table, if none start at 0
-create fake transaction json data
-load json file into s3 bucket
-load json file from s3 to snowflake using streams??? or bucket auto detect???
-run a transform script via snowflake, sql or python? *** is this script triggered by the bucket auto detect??
-tableau dashboard
-'''
-
-'''
-retrieve products csv and from s3 bucket
-fetch max customer_id from snowflake table, if none start at 0
-create fake transaction json data
-send the json file to spark for transformation
-load into snowflake
-tableau
-'''
-
-'''
-aws pipeline
-'''

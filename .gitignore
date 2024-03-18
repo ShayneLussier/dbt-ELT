@@ -5,8 +5,8 @@ config/*.py
 dags/example_bash_operator.py
 postgres_data/
 logs/*
+*.env
 
 !/dags/dbt-pipeline.py
 !/dags/scripts/transactions.py
-!/dags/scripts/database.py
 !/logs/.gitkeep
