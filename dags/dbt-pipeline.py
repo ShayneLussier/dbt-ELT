@@ -1,4 +1,12 @@
 # import aws conn keys as variables into airflow??
+# add mask to customer credit card number
+
+# if the task to pull max_id from snowflake fails, it means there is no table, so airflow should trigger a task to create the table and return zero
+# how to implement the on_failure tasks with other tables???
+
+## !!!!!!!!!!!!!! check if new bash command works: 'dbt run --models store.customers_dim.* --profiles-dir ./',
+
+# check if " have been removed from address, email, credit card
 
 
 from datetime import datetime, timedelta
@@ -6,9 +14,10 @@ from datetime import datetime, timedelta
 from airflow.models import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
+from airflow.operators.bash import BashOperator
+
 
 from scripts.transactions import fetch_product_data, generate_fake_transaction, upload_to_s3
-from scripts.database import get_max_customer_id
 
 # -------------------- FUNCTIONS -------------------- #
 
@@ -23,9 +32,9 @@ def generate_transactions(**kwargs):
 default_args = {
     'owner': 'airflow',
     'email': ['shayne@shaynelussier.com'],
-    'email_on_failure': True,
+    'email_on_failure': False, # set to True
     "depends_on_past": False,
-    'retries': 1,
+    'retries': 0,
     "retry_delay": timedelta(seconds=30)
 }
 
@@ -103,9 +112,23 @@ with DAG(
         dag=dag,
     )
 
+    populate_customers_dim = BashOperator(
+        task_id='populate_customers_dim',
+        bash_command='dbt run --models store.customers_dim.* --profiles-dir ./',
+        cwd='/opt/airflow/dbt',
+        dag=dag,
+    )
+
+    populate_transactions_fact = BashOperator(
+        task_id='populate_transactions_fact',
+        bash_command='dbt run --models store.transactions_fact.* --profiles-dir ./',
+        cwd='/opt/airflow/dbt',
+        dag=dag,
+    )
+
     # Define the task dependency
-    [fetch_s3_product_data, fetch_max_customer_id] >> generate_transactions >> upload_to_s3
-    upload_to_s3 >> create_staging_table >> copy_raw_data
+    [fetch_s3_product_data, fetch_max_customer_id] >> generate_transactions >> upload_to_s3 >> create_staging_table
+    create_staging_table >> copy_raw_data >> [populate_customers_dim, populate_transactions_fact]
 
 '''
 retrieve products csv and from s3 bucket

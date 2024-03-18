@@ -49,9 +49,8 @@ def fetch_product_data(key='products/products.csv', bucket_name='data-pipeline-r
             "product_brand": row[2],
             "gender": row[3],
             "price": float(row[4]),
-            "num_images": int(row[5]),
-            "description": row[6],
-            "primary_color": row[7] if row[7] else "NA"  # Some rows have missing color
+            "description": row[5],
+            "primary_color": row[6] if row[6] else "NA"  # Some rows have missing color
         }
         product_data.append(product)
     return product_data
@@ -88,10 +87,10 @@ def transaction_new_customer(product_data, max_id):
         "customer": {
             "id": max_id[0] + 1,
             "name": customer_name,
-            "email": f"{''.join(customer_name.split())}@email.com",
-            "address": generate_quebec_address(),
+            "email": (f"{''.join(customer_name.split())}@email.com").replace('"', ''),
+            "address": generate_quebec_address().replace('"', ''),
             "phone": fake.phone_number(),
-            "card_number": fake.credit_card_number()
+            "card_number": fake.credit_card_number().replace('"', '')
         }
     }
     max_id[0] += 1
@@ -107,9 +106,7 @@ def transaction_returning_customer(product_data, max_customer_id):
 
     # Select a random customer from the JSON data
     json_data = read_json(JSON)
-    print(json_data)
     existing_customer = random.choice(json_data)
-    print(existing_customer)
     
     # Generate transaction data using the selected customer's details
     data = {

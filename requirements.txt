@@ -18,6 +18,9 @@ apache-airflow-providers-ssh
 apache-airflow-providers-tableau
 boto3
 datetime
+dbt-core
+dbt-snowflake
+faker
 pandas
 pendulum
 psycopg2-binary
@@ -25,5 +28,3 @@ pymongo
 requests
 responses
 snowflake-connector-python
-
-faker
