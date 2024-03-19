@@ -6,12 +6,13 @@ from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 from airflow.operators.bash import BashOperator
 
 
-from scripts.transactions import fetch_product_data, generate_fake_transaction, upload_to_s3
+from scripts.transactions import fetch_product_data, generate_fake_transaction
+from scripts.files import upload_to_s3
 
 # -------------------- FUNCTIONS -------------------- #
 
 def generate_transactions(**kwargs):
-    amount = 100
+    amount = 10
     ti = kwargs['ti']  # Access the XCom Task Instance
     max_customer_id=ti.xcom_pull(task_ids='fetch_max_customer_id', key='return_value')
     generate_fake_transaction(amount, max_customer_id)
