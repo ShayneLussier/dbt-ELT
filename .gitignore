@@ -9,4 +9,6 @@ logs/*
 
 !/dags/dbt-pipeline.py
 !/dags/scripts/transactions.py
+!/dags/scripts/files.py
+!/dags/scripts/rates.py
 !/logs/.gitkeep
