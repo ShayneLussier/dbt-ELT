@@ -5,7 +5,7 @@ import os
 import uuid
 
 from .files import fetch_product_data, read_json, append_to_json
-from .rates import convert_price_to_cad
+from .rates import api_date, retrieve_inr_to_cad_rate, convert_to_cad
 
 # -------------------- VALUES -------------------- #
 
@@ -33,22 +33,19 @@ def generate_date(start_date=START_DATE, end_date=END_DATE):
     random_date = (start_date + timedelta(days=random_days)).strftime("%Y%m%d")
     return random_date
 
-def api_date(date):
-    date_obj = datetime.strptime(date, "%Y%m%d")
-    formatted_date = date_obj.strftime("%Y-%m-%d")
-    return formatted_date
-
 def transaction_new_customer(product_data, max_id):
     customer_name = fake.name()
     num_items = random.randint(1, 5)
-    date = generate_date() 
+    date = generate_date()
+    rate = retrieve_inr_to_cad_rate(api_date(date))
     data = {
         "id": uuid.uuid4().hex,
         "date": date,
+        "store_id": int(f'1200{num_items}'),
         # returns the product_id and price of a random product in 'products.csv' for a random number of items
         "items": [
             {"product_id": chosen_product['ProductID'],
-                "price": convert_price_to_cad(float(chosen_product['Price (INR)']), api_date(date))}
+                "price": convert_to_cad(float(chosen_product['Price (INR)']), rate)}
             for chosen_product in [random.choice(product_data) for _ in range(num_items)]
         ],
         "customer": {
@@ -78,13 +75,15 @@ def transaction_returning_customer(product_data, max_id):
     
     # Generate transaction data using the selected customer's details
     date = generate_date()
+    rate = retrieve_inr_to_cad_rate(api_date(date))
     data = {
         "id": uuid.uuid4().hex,
         "date": date,
+        "store_id": int(f'1200{num_items}'),
         # returns the product_id and price of a random product in 'products.csv' for a random number of items
         "items": [
             {"product_id": chosen_product['ProductID'],
-                "price": convert_price_to_cad(float(chosen_product['Price (INR)']), api_date(date))}
+                "price": convert_to_cad(float(chosen_product['Price (INR)']), rate)}
             for chosen_product in [random.choice(product_data) for _ in range(num_items)]
         ],
         "customer": {

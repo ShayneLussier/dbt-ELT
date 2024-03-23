@@ -1,6 +1,7 @@
 SELECT
     id AS TRANSACTION_ID,
     customer:id AS CUSTOMER_ID,
+    store_id AS STORE_ID,
     date AS TRANSACTION_DATE,
     flattened.key AS ITEM_ID,
     flattened.value:product_id::string AS PRODUCT_ID,
